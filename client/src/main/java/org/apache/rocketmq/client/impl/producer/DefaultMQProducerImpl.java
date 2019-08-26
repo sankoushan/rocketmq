@@ -558,7 +558,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                         // 重新记录本次发送开始时间
                         beginTimestampPrev = System.currentTimeMillis();
                         if (times > 0) {
-                            // TODO ghj 重试发送消息时，重新设置topic ？？？
+                            // TODO ghj 重试发送消息时，重新设置topic 在前面设置 "%RETRY%" 或 "%DLQ%"
                             //Reset topic with namespace during resend.
                             msg.setTopic(this.defaultMQProducer.withNamespace(msg.getTopic()));
                         }
@@ -582,7 +582,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                                 return null;
                             case SYNC:
                                 if (sendResult.getSendStatus() != SendStatus.SEND_OK) {
-                                    // 发送失败，且当存储失败时是否重试另一个broker为true，则重试循环
+                                    // 发送失败，且当是否重试另一个broker为true，则重试循环
                                     if (this.defaultMQProducer.isRetryAnotherBrokerWhenNotStoreOK()) {
                                         continue;
                                     }
@@ -691,12 +691,14 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     private TopicPublishInfo tryToFindTopicPublishInfo(final String topic) {
         TopicPublishInfo topicPublishInfo = this.topicPublishInfoTable.get(topic);
         if (null == topicPublishInfo || !topicPublishInfo.ok()) {
+            // 初始化
             this.topicPublishInfoTable.putIfAbsent(topic, new TopicPublishInfo());
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(topic);
             topicPublishInfo = this.topicPublishInfoTable.get(topic);
         }
 
         if (topicPublishInfo.isHaveTopicRouterInfo() || topicPublishInfo.ok()) {
+            // 如果找到了topic，直接返回
             return topicPublishInfo;
         } else {
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(topic, true, this.defaultMQProducer);

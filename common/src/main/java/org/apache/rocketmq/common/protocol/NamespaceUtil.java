@@ -81,6 +81,7 @@ public class NamespaceUtil {
     }
 
     public static String wrapNamespace(String namespace, String resourceWithOutNamespace) {
+        // 当namespace或resource为空时，直接返回
         if (StringUtils.isEmpty(namespace) || StringUtils.isEmpty(resourceWithOutNamespace)) {
             return resourceWithOutNamespace;
         }
@@ -109,6 +110,7 @@ public class NamespaceUtil {
             return false;
         }
 
+        // 去除 "%DLQ%" "%RETRY%"
         String resourceWithoutRetryAndDLQ = withOutRetryAndDLQ(resource);
 
         return resourceWithoutRetryAndDLQ.startsWith(namespace + NAMESPACE_SEPARATOR);

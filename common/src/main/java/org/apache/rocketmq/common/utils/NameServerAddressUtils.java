@@ -24,6 +24,8 @@ public class NameServerAddressUtils {
     public static final Pattern INST_ENDPOINT_PATTERN = Pattern.compile("^" + ENDPOINT_PREFIX + INSTANCE_REGEX + "\\..*");
 
     public static String getNameServerAddresses() {
+        // rocketmq.namesrv.addr
+        // NAMESRV_ADDR
         return System.getProperty(MixAll.NAMESRV_ADDR_PROPERTY, System.getenv(MixAll.NAMESRV_ADDR_ENV));
     }
 

@@ -110,10 +110,12 @@ public class MixAll {
     }
 
     public static boolean isSysConsumerGroup(final String consumerGroup) {
+        // CID_RMQ_SYS_
         return consumerGroup.startsWith(CID_RMQ_SYS_PREFIX);
     }
 
     public static boolean isSystemTopic(final String topic) {
+        // rmq_sys_
         return topic.startsWith(SYSTEM_TOPIC_PREFIX);
     }
 
