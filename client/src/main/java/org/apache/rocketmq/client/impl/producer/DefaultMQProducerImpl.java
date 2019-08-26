@@ -510,6 +510,12 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         return this.mqFaultStrategy.selectOneMessageQueue(tpInfo, lastBrokerName);
     }
 
+    /**
+     * 修改发送失败条目
+     * @param brokerName
+     * @param currentLatency 当前延迟
+     * @param isolation 隔离状态
+     */
     public void updateFaultItem(final String brokerName, final long currentLatency, boolean isolation) {
         this.mqFaultStrategy.updateFaultItem(brokerName, currentLatency, isolation);
     }
@@ -567,7 +573,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                         sendResult = this.sendKernelImpl(msg, mq, communicationMode, sendCallback, topicPublishInfo, timeout - costTime);
                         // 记录本次发送结束时间
                         endTimestamp = System.currentTimeMillis();
-                        // TODO
+                        // 设置不可用时间，发送时间小于100ms，则不延时
                         this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false);
                         switch (communicationMode) {
                             case ASYNC:
