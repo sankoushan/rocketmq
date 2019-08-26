@@ -524,38 +524,50 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         Validators.checkMessage(msg, this.defaultMQProducer);
 
         final long invokeID = random.nextLong();
+        // 记录发送消息开始时间
         long beginTimestampFirst = System.currentTimeMillis();
         long beginTimestampPrev = beginTimestampFirst;
         long endTimestamp = beginTimestampFirst;
+        // TODO ghj 从nameServer查找topic路由信息
         TopicPublishInfo topicPublishInfo = this.tryToFindTopicPublishInfo(msg.getTopic());
         if (topicPublishInfo != null && topicPublishInfo.ok()) {
             boolean callTimeout = false;
             MessageQueue mq = null;
             Exception exception = null;
             SendResult sendResult = null;
+            // 同步消息时需要进行2次重试，一共发送3次消息
+            // 其它发送模式不进行重试
             int timesTotal = communicationMode == CommunicationMode.SYNC ? 1 + this.defaultMQProducer.getRetryTimesWhenSendFailed() : 1;
             int times = 0;
             String[] brokersSent = new String[timesTotal];
             for (; times < timesTotal; times++) {
                 String lastBrokerName = null == mq ? null : mq.getBrokerName();
+
+                // TODO ghj 根据上次发送的broker选择本次发送的MessageQueue
                 MessageQueue mqSelected = this.selectOneMessageQueue(topicPublishInfo, lastBrokerName);
                 if (mqSelected != null) {
                     mq = mqSelected;
                     brokersSent[times] = mq.getBrokerName();
                     try {
+                        // 重新记录本次发送开始时间
                         beginTimestampPrev = System.currentTimeMillis();
                         if (times > 0) {
+                            // TODO ghj 重试发送消息时，重新设置topic ？？？
                             //Reset topic with namespace during resend.
                             msg.setTopic(this.defaultMQProducer.withNamespace(msg.getTopic()));
                         }
                         long costTime = beginTimestampPrev - beginTimestampFirst;
                         if (timeout < costTime) {
+                            // 发送超时，直接返回，中止本次发送
                             callTimeout = true;
                             break;
                         }
 
+                        // 调用发送方法进行消息发送
                         sendResult = this.sendKernelImpl(msg, mq, communicationMode, sendCallback, topicPublishInfo, timeout - costTime);
+                        // 记录本次发送结束时间
                         endTimestamp = System.currentTimeMillis();
+                        // TODO
                         this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false);
                         switch (communicationMode) {
                             case ASYNC:
@@ -564,6 +576,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                                 return null;
                             case SYNC:
                                 if (sendResult.getSendStatus() != SendStatus.SEND_OK) {
+                                    // 发送失败，且当存储失败时是否重试另一个broker为true，则重试循环
                                     if (this.defaultMQProducer.isRetryAnotherBrokerWhenNotStoreOK()) {
                                         continue;
                                     }
@@ -623,18 +636,22 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 }
             }
 
+            // 如果发送后能获取到发送结果，直接返回
             if (sendResult != null) {
                 return sendResult;
             }
 
+            // 全部次数重试后依旧失败
             String info = String.format("Send [%d] times, still failed, cost [%d]ms, Topic: %s, BrokersSent: %s",
                 times,
                 System.currentTimeMillis() - beginTimestampFirst,
                 msg.getTopic(),
                 Arrays.toString(brokersSent));
 
+            //字符串拼接： "\nSee http://rocketmq.apache.org/docs/faq/ for further details."
             info += FAQUrl.suggestTodo(FAQUrl.SEND_MSG_FAILED);
 
+            // 封装返回的异常信息
             MQClientException mqClientException = new MQClientException(info, exception);
             if (callTimeout) {
                 throw new RemotingTooMuchRequestException("sendDefaultImpl call timeout");
@@ -652,6 +669,8 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
             throw mqClientException;
         }
+
+        // 以下为未查询到路由信息的逻辑
 
         List<String> nsList = this.getmQClientFactory().getMQClientAPIImpl().getNameServerAddressList();
         if (null == nsList || nsList.isEmpty()) {

@@ -55,6 +55,12 @@ public class MQFaultStrategy {
         this.sendLatencyFaultEnable = sendLatencyFaultEnable;
     }
 
+    /**
+     * 从topic信息中查找MessageQueue
+     * @param tpInfo
+     * @param lastBrokerName 上一次发送的brokerName，第一次发送为null
+     * @return
+     */
     public MessageQueue selectOneMessageQueue(final TopicPublishInfo tpInfo, final String lastBrokerName) {
         if (this.sendLatencyFaultEnable) {
             try {
@@ -89,6 +95,7 @@ public class MQFaultStrategy {
             return tpInfo.selectOneMessageQueue();
         }
 
+        // 循环获取不同broker的MessageQueue
         return tpInfo.selectOneMessageQueue(lastBrokerName);
     }
 

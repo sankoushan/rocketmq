@@ -68,23 +68,33 @@ public class TopicPublishInfo {
 
     public MessageQueue selectOneMessageQueue(final String lastBrokerName) {
         if (lastBrokerName == null) {
+            // 第一次随机获取MessageQueue
             return selectOneMessageQueue();
         } else {
+            // 重试时获取MessageQueue
             int index = this.sendWhichQueue.getAndIncrement();
             for (int i = 0; i < this.messageQueueList.size(); i++) {
                 int pos = Math.abs(index++) % this.messageQueueList.size();
                 if (pos < 0)
                     pos = 0;
                 MessageQueue mq = this.messageQueueList.get(pos);
+                // 上一次发送消息失败，本次更换其它broker的Queue
                 if (!mq.getBrokerName().equals(lastBrokerName)) {
                     return mq;
                 }
             }
+
+            // 获取MessageQueue，第一次随机获取，后面获取上一次的下一个MessageQueue
             return selectOneMessageQueue();
         }
     }
 
+    /**
+     * 获取MessageQueue，第一次随机获取，后面获取上一次的下一个MessageQueue
+     * @return
+     */
     public MessageQueue selectOneMessageQueue() {
+        // 使用ThreadLocal存储本次获取MessageQueue的索引
         int index = this.sendWhichQueue.getAndIncrement();
         int pos = Math.abs(index) % this.messageQueueList.size();
         if (pos < 0)
